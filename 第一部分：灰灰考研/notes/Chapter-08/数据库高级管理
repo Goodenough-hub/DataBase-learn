@@ -1,0 +1,129 @@
+[TOC]
+
+- 了解数据备份的基本概念
+- 掌握`MySQL`中数据备份、数据恢复的基本操作
+- 掌握`MySQL`中创建、删除用户的基本操作
+- 掌握`MySQL`中授予。查看权限和收回权限的基本操作
+
+# 数据库的备份与恢复
+数据备份是对数据库结构、对象和数据的复制，以便在数据库遭到破坏或因需求改变而需要把数据还原到某个时间点时能够恢复数据库。数据恢复就是将数据库备份加载到系统中。数据备份和数据恢复可以保护数据库的关键数据。
+## 数据备份的分类
+### 按备份时服务器是否在线来划分
+1. 热备份。数据库正处于运行状态，此时依赖数据库的日志文件进行备份。
+2. 温备份。进行数据备份时数据库服务正常运行，但数据只能读不能写。
+3. 冷备份。数据库处于关闭状态，能够较好地保证数据库的完整性。
+### 按备份的内容来划分
+1. 逻辑备份。使用软件从数据库中提取数据并将结果写到一个文件上，该文件格式一般与原数据库的文件格式不同，只是原数据库中数据内容的一个映像。
+2. 物理备份。物理备份指直接复制数据库文件。与逻辑备份相比，其速度较快，但占用空间较大。
+### 按备份涉及的数据范围来划分。
+1. 完整备份、完整备份指备份整个数据库。这是任何备份策略中都要求完成的第一种备份类型，其他所有备份类型都依赖于完整备份。换句说，如果没有执行完整备份，就无法执行差异备份和增量备份。
+2. 增量备份。是对数据库从上一次完整备份或者最近一次增量备份以来改变的内容的备份。
+3. 差异备份。是对最近一次完整备份以后发生改变的数据进行的备份。差异备份仅备份自最近一次完整备份后发生更改的数据。
+   
+备份时一种十分耗费时间和资源的操作，对其使用不能太过频繁。应该根据数据库使用情况确定一个合适的备份周期。
+
+## 数据恢复的方法
+数据恢复就是指当数据库出现故障时，将备份的数据库加载到系统中，从而使数据库恢复到备份时的正确状态。`MySQL`有三种保证数据安全的方法。
+1. 数据库备份。通过导出数据或者表文件的副本来保护数据。
+2. 二进制日志文件保存更新数据的所有语句。
+3. 数据库复制。`MySQL`的内部复制功能建立在两个或多个服务器之间，是通过设定它们之间的主从关系来实现的。其中一个作为主服务器，其他的作为从服务器。
+
+### 数据库备份
+数据库的备份为了保证数据的安全，数据库管理员应定期对数据库进行1备份。
+备份应该要遵循两个简单原则：
+1. 要尽早并且经常备份；
+2. 是不要只备份到同一磁盘的同一文件中，要在不同位置保存多个副本，以确保备份安全。
+
+`MySQL`的`mysqldump`命令可以实现数据的备份：
+`mysqldump`命令可以备份单个数据库、多个数据库和所有数据库，由于这三种备份方式比较类似，所以本节就以备份单个数据库为例来讲解`mysqldump`命令，其他方式只列举语法格式。
+1. 备份单个数据库，`mysqldump`命令备份数据库的语法格式如下：
+   `mysqldum -u username -h host-ppassword`
+   `dbname [tbname1, tbname2...]>filename.sql;`
+2. 备份多个数据库，使用`mysqldump`命令备份多个数据库时，需要使用`--database`参数，其语法格式如下：
+   `mysqldump -u username -h host -ppassword -- database dbname1 [dbname2 dbname3...]>filename.sql`
+3. 备份所有数据库，使用`mysqldump`命令备份所有数据库时，需在该命令后使用`--all-databases`参数，其语法格式如下：
+   `mysqldump -uusername -hhost -ppassword --all-databases>filename.sql`
+
+![mysqldump参数.jpg](reference/mysqldump参数.jpg)
+
+### 数据库的恢复
+恢复数据库，就是当数据库中的数据遭到破坏时，让数据库根据备份的数据回到备份时的状态。这里说的恢复数据库中的数据，而数据库是不能被恢复的。通过前面的内容可知，备份文件实际上就是由多个`CREATE`、`INSERT`和`DROP`语句组成的，因此只要使用`mysql`命令执行这些语句就可以将数据恢复。
+对于使用`mysqldump`命令备份后形成的`.sql`文件，可以使用`mysql`命令导入到数据库中。备份的`.sql`文件中包含`CREATE`、`INSERT`语句，也可能包含`DROP`语句。`mysql`命令可以直接执行文件中的这些语句。
+`mysql`命令恢复数据的语法格式：`mysql -u username -ppassword [dbname]<filename.sql`
+
+# 用户管理
+用户管理可以保证`MySQL`系统的安全性。`MySQL`的用户管理包括创建用户、删除用户、管理密码等。`MySQL`用户分为`root`用户和普通用户，`root`用户为超级管理员，具有所有权限，而普通用户只拥有被赋予的指定权限。
+
+## user表
+在安装`MySQL`时，系统会自动创建一个名为`mysql`的数据库，该数据库中的表都是权限表，如`user`、`db`、`host`、`tables_priv`、`column_priv`、`procs_priv`等，其中`user`表是最重要的权限表，它记录了允许连接到服务器的账号信息以及一些全局级别的权限信息。通过操作该表就可以对这些信息进行修改。`user`表中的一些常见字段如表：
+![user表字段.jpg](reference/user表字段.jpg)
+
+## 创建新用户
+在`MySQL`数据库中，只有一个`root`用户是无法管理众多数据的，因此需要创建多个普通用户来管理不同类型的数据。创建普通用户有以下三种方法。
+### 使用`CREATE USER`语句创建新用户
+使用`CREATE USER`语句创建新用户时，`MySQL`服务器会自动修改相应的授权表。该语句创建的新用户可以连接数据库，但是不具有任何权限。`CREATE USER`语句创建用户的语句格式如下：
+ `CREATE USER 'username'@'hoastname' [IDENTIFIED] BY [PASSWORD] 'password'`
+ `[, 'username'@'hostname' [IDENTIFIED BY [PASSWORD]'password']]...`
+
+### 使用`GRANT`语句创建用户
+使用`GRANT`语句创建用户与`CREATE USER`语句不同，`GRANT`语句不仅可以创建新用户，而且可以对该用户授权。除此之外，`GRANT`语句还可以指定用户的其他特点，如安全连接、限制使用服务器资源等。`GRANT`语句执行的时候自动加载权限表，无需手动刷新。因此，`GRANT`语句是创建用户最常见的方法。`GRANT`语句创建用户的语法格式：
+`GRANT privileges ON database.table TO 'username'@'hostname' [IDENTIDIED BY]`
+`[PASSWORD]'password'][,'username'@'hostname' [IDENTIDIED BY [PASSWORD]'password']...`
+
+### 使用`INSERT`语句创建用户
+从上面的讲述中可以看出，不管是使用`CREATE USER`语句还是`GRANT`语句创建新用户，实际上就是在`mysql`数据库的`user`表中添加一条新的记录。因此，可以使用`INSERT`语句直接将新用户的信息添加到`mysql.user`表中。
+使用`INSERT`语句创建用户的语法格式如下：
+`INSERT INTO mysql.user(Host, User, Password, ssl_cipher, x509_issuer, x509_subject)`
+`VALUES('hostname', 'username', PASSWORD ('password'), '', '', '')`
+
+## 删除普通用户
+### 使用`DROP USER`语句删除用户
+如果要删除某个用户，只需在`DROP USER`后面指定要删除的用户即可。
+`DROP USER`还可以同时删除多个`MySQL`账户，并取消其权限。要使用`DROP USER`语句，必须拥有`mysql`数据库的`DROP USER`权限。语法格式如下：
+`DROP USER 'username'@'hostname' [,'username'@'hostname'];`
+### 使用`DELETE`语句删除用户
+所谓删除用户，就是将`mysql`数据库的`user`表中的一条记录删除，因此，也可以通过`DELETE`语句实现用户删除。使用`DELETE`语句删除`user`表中的数据时，要指定表名为`mysql.user`，用户还必须拥有对`mysql.user`表的`DELETE`权限。语法格式：
+`DELETE FROM mysql.user WHERE Host='hostname' AND User='username';`
+
+## 修改用户信息
+创建好用户后，还可以对用户的名称和密码进行修改！
+### 修改用户名称
+在`MySQL`中，修改用户的名称可以使用`RENME USER`语句。
+基本语法格式：
+`RENAME USER old_username TO new_username[,old_username TO new_username][,...]`
+### 修改用户密码
+`MySQL`中的用户可以对数据库进行权限内的各种操作，因此用户的密码非常重要，密码一旦泄露2就必须马上修改。在`MySQL`用户中，`root`用户权限最高，可以修改自己的密码，也可以修改其他普通用户的密码；普通用户只能修改自己的密码。
+修改某个用户的登录密码，可以使用`mysqladmin`命令、`UPDATE`语句或`SETPASSWORD`语句来实现。
+由于`root`用户和普通用户修改密码的方式比较类似，下面就以修改`root`用户的密码为例进行讲解。
+1. 使用`mysqladmin`命令修改密码。`mysqladmin`命令通常用于执行一些管理性的工作，在`MySQL`中可以使用该命令来修改用户的密码。
+   语法格式：`mysqladmin -u username [-h hostname] -p password new_password`
+2. 使用`UPDATE`语句修改`root`用户密码信息，也可以直接修改`mysql`数据库的`user`表。`root`用户只要登录到`MySQL`服务器，就可以使用`UPDATE`语句直接修改自己的密码。`UPDATE`语句修改密码的语法格式如下：
+   `UPDATE mysql.user set Password=PASSWORD('new_password') WHERE User='username' and Host='hostname';`
+3. 使用`SET`语句修改`root`用户的密码。要想使用`SET`语句修改密码，首先使用`root`用户登录服务器。新密码一定要使用`PASSWORD()`函数加密。`SET`语句修改密码的语法格式：
+   `SET PASSWORD [FOR username]=PASSWORD('newpassword');`
+
+# 权限管理
+在`MySQL`数据库中，为了保证数据的安全性，数据库管理员需要为每个用户赋予不同的权限，以满足不同用户的需求。对权限管理简单的理解就是`MySQL`控制用户只能做权限以内的事情，不可以越界。
+权限管理主要是对登录到`MySQL`的用户进行权限验证。所有用户的权限都存储在`MySQL`的权限表中。合理的权限管理能够保证数据库系统的安全，而不合理的权限设置会给`MySQL`服务器带来安全隐患。
+## MySQL的权限类型
+权限管理主要是对登录到MySQL的用户进行权限验证。所有用户的权限都存储在MySQL的权限表中。合理的权限管理能够保证数据库系统的安全，而不合理的权限设置会给`MySQL`服务器带来安全隐患。
+![权限类型.jpg](reference/权限类型.jpg)
+![权限类型2.jpg](reference/权限类型2.jpg)
+## 权限的查询
+`MySQL`提供`SHOW GRANTS`语句用来显示指定用户的权限信息。语法格式：
+`SHOW GRANTS FOR 'username'@'hostname';`
+## 权限授予
+在`MySQL`中，可以使用GRANT`语句为用户1授予权限。语法格式：
+`GRANT priv_type [(columns)][,priv_type[columns]] ON database.table`
+`TO 'username'@'hostname' [IDENTIFIED BY [PASSWORD]'password'][,'username'@'hostname' [IDENTIFIED BY [PASSWORD]'password]]...[WITH with_option [with_option]...]`
+## 权限收回
+在`MySQL`中，为了保证数据的安全，有时需要取消已经授予用户的某些权限。权限收回后，用户账户记录将从`db`、`host`、`table_priv`和`columns_priv`表中删除，但是用户账户记录仍然在`user`表中保存。收回权限利用`REVOKE`语句来实现。
+1. 收回指定权限`REVOKE`语句的语法格式：
+   `REVOKE priv_type [columns][, priv_type [(columns)]] ON database.table FROM 'username';`
+2. 收回所有权限收回所有权限的语法格式：
+   `REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'username'@'hostname' [,'username'@'hostname']...`
+
+# 本章小结
+- 数据的备份与恢复。为保证数据库中数据的安全，要经常进行数据库的备份。当数据库遭到破坏时，可以使用备份来恢复数据。
+- 数据库用户的管理，包括数据库用户增加、删除、修改、查看等基本操作。
+- 用户权限的管理，包括用户权限的查询、授予和收回等操作。
